@@ -15,7 +15,7 @@ import Item_rl_Garage
 
 def load_n_pages(url, n, path_to_chrome_driver):
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    # chrome_options.add_argument("--headless")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--start-maximized")
 
@@ -25,7 +25,9 @@ def load_n_pages(url, n, path_to_chrome_driver):
     # accept privacy policy
     WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.ID, 'acceptPrivacyPolicy'))).click()
     # accept privacy policy again (wtf)
-    WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.CLASS_NAME, 'css-1tbbj19'))).click()
+    WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]'))).click()
+    # doesnt seem to work on windows
+    # WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.CLASS_NAME, 'css-1tbbj19'))).click()
 
     for i in range(n):
         print("\rLoading Page " + str(i) + "/" + str(n), end="")
