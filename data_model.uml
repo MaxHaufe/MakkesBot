@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>DATABASE</ID>
+  <OriginalElement>6481cb42-1000-4e42-9f7e-2c379e3fe956.SCHEMA:main</OriginalElement>
+  <nodes>
+    <node x="274.0" y="215.0">6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_insider_prices</node>
+    <node x="9.0" y="0.0">6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_garage_trade</node>
+    <node x="269.0" y="0.0">6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_insider_item</node>
+    <node x="0.0" y="237.0">6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_garage_trade_contents</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_insider_prices" target="6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_insider_item">
+      <point x="0.0" y="-60.5" />
+      <point x="0.0" y="82.5" />
+    </edge>
+    <edge source="6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_garage_trade_contents" target="6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_garage_trade">
+      <point x="0.0" y="-126.5" />
+      <point x="0.0" y="93.5" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic Group" zoom="1.0" x="223.5" y="245.0" />
+  <SelectedNodes>
+    <node>6481cb42-1000-4e42-9f7e-2c379e3fe956.TABLE:main.rl_insider_prices</node>
+  </SelectedNodes>
+  <Categories>
+    <Category>Key columns</Category>
+    <Category>Columns</Category>
+    <Category>Virtual foreign keys</Category>
+  </Categories>
+</Diagram>
+

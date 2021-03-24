@@ -15,7 +15,7 @@ import Item_rl_Garage
 
 def load_n_pages(url, n, path_to_chrome_driver):
     chrome_options = Options()
-    # chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--start-maximized")
 
@@ -30,7 +30,7 @@ def load_n_pages(url, n, path_to_chrome_driver):
     # WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.CLASS_NAME, 'css-1tbbj19'))).click()
 
     for i in range(n):
-        print("\rLoading Page " + str(i) + "/" + str(n), end="")
+        print("\rLoading Page " + str(i+1) + "/" + str(n), end="")
         try:
             WebDriverWait(driver, 20).until(
                 ec.element_to_be_clickable((By.CLASS_NAME, 'rlg-btn-primary.rlg-btn-primary-pink'))).click()
@@ -82,13 +82,6 @@ def eval_url_bs4(content, time_now):
         else:
             trade_note = trade.find('div', class_='rlg-trade__note').text
 
-        # print(platform_name)
-        # print(rlg_name)
-        # print(platform_link)
-        # print(trade_time)
-        # print(trade_note)
-        # print("")
-
         items_wants_list = []
         items_has_list = []
         # for each item get name, color, amount
@@ -103,10 +96,10 @@ def eval_url_bs4(content, time_now):
 
         trade_list.append(Trade.Trade(rlg_name, platform_name, platform_username, platform_link,
                                       items_has_list, items_wants_list, trade_time, trade_note))
-        print("\rEvaluating Trade " + str(idx) + "/" + str(len(trades_html)), end="")
+        print("\rEvaluating Trade " + str(idx+1) + "/" + str(len(trades_html)), end="")
 
         # print("\n\nCount: " + str(idx))
-        print("")
+    print("")
     return trade_list
 
 
@@ -114,7 +107,8 @@ def get_item_from_trade(html):
     # name
     # make RLCS X (Octane) to  RLCS X [Octane] <= for RL insider
     item_name = html.find('h2', class_='rlg-item__name').text.replace("(", "[").replace(")", "]")
-    item_rarity = html['class'][1].replace("-", "")
+    item_rarity = html.find('div', class_='rlg-item__gradient')['class'][1].replace("-", "")
+    # item_rarity = html['class'][1].replace("-", "")
     # color
     try:
         # it's always \n item color
@@ -186,7 +180,7 @@ def insert_trade_list_into_database(connection, trade_list):
         )
 
         trade_id = cursor.lastrowid
-        print("\rInserting Trade " + str(idx) + "/" + str(len(trade_list)), end="")
+        print("\rInserting Trade " + str(idx+1) + "/" + str(len(trade_list)), end="")
 
         for has_item, wants_item in zip(trade.has_item_list, trade.wants_item_list):
             insert_content_list = [
