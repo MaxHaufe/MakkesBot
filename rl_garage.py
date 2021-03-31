@@ -1,54 +1,148 @@
 import re
+import traceback
 
+import requests
 from bs4 import BeautifulSoup
-from datetime import timedelta
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException
+from datetime import timedelta, datetime
+# from selenium import webdriver
+# from selenium.webdriver.common.by import By
+# from selenium.webdriver.support import expected_conditions as ec
+# from selenium.webdriver.support.wait import WebDriverWait
+# from selenium.webdriver.chrome.options import Options
+# from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 import Trade
 import Item_rl_Garage
 
 
-def load_n_pages(url, n, path_to_chrome_driver):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--start-maximized")
+def parse_n_pages(url_flags, n, connection):
+    time_now = datetime.now()
 
-    driver = webdriver.Chrome(path_to_chrome_driver, options=chrome_options)
-    # driver = webdriver.Chrome("/home/max/PycharmProjects/chromedriver")
-    driver.get(url)
-    # accept privacy policy
-    WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.ID, 'acceptPrivacyPolicy'))).click()
-    # accept privacy policy again (wtf)
-    WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]'))).click()
-    # doesnt seem to work on windows
-    # WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.CLASS_NAME, 'css-1tbbj19'))).click()
+    url = "https://rocket-league.com/trading" + url_flags
+    ajax_load_more_url = "https://rocket-league.com/ajaxfunctions/loadAdditionalTrades.php" + url_flags
+    response = requests.get(url)
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+    html_dump = soup.find_all('script', type="text/javascript")
+
+    csrf_token = html_dump[0].string.split('"')[1]
+    match = re.search('.*\\[(.*)\\];\\n.*tradingTimestamp = ([0-9]*)', html_dump[1].contents[0])
+    trade_id_list = match.group(1).split(",")
+    timestamp = match.group(2)
+
+    # get cookies
+    cookies = response.cookies.get_dict()
+    php_sess_ID = cookies['PHPSESSID']
+    __cfduid = cookies['__cfduid']
+    # make header dictionary
+    cookie_string = 'PHPSESSID=' + php_sess_ID + '; __cfduid=' + __cfduid + '; removedOldEuConsent=true'
+    # configure header
+    headers = {
+        'Accept': '*/*',
+        'X-Requested-With': 'XMLHttpRequest',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Sec-GPC': '1',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Dest': 'empty',
+        'Cookie': cookie_string
+    }
+
+    item_list_page_one = eval_url_bs4(soup, time_now)
+    insert_trade_list_into_database(connection, item_list_page_one)
+
+    # tries = 0
 
     for i in range(n):
-        print("\rLoading Page " + str(i+1) + "/" + str(n), end="")
         try:
-            WebDriverWait(driver, 20).until(
-                ec.element_to_be_clickable((By.CLASS_NAME, 'rlg-btn-primary.rlg-btn-primary-pink'))).click()
-        except TimeoutException:
-            print("")
-            print('\033[91m' + "Timeout, not all pages of rl_garage could be loaded, returning." + '\033[0m')
-            return driver.page_source
-    print("")
-    return driver.page_source
+            start_time_loop = datetime.now()
+            print("\rLoading Page " + str(i + 1) + "/" + str(n), end="")
+            # make payload
+            payload = 'csrf_token=' + csrf_token + '&timestamp=' + timestamp
+            for trade_id in trade_id_list:
+                payload += '&trades%5B%5D=' + trade_id
+
+            response_next_page = requests.request("POST", ajax_load_more_url, headers=headers, data=payload)
+            # prepare for loading next page
+            soup_next_page = BeautifulSoup(response_next_page.content, 'html.parser')
+            html_next_page_dump = soup_next_page.find_all(id='fetched-trades')
+            trade_id_list = html_next_page_dump[0]['data-ids'].replace("[", "").replace("]", "").split(",")
+            timestamp = html_next_page_dump[0]['data-timestamp']
+
+            # evaluate and insert into database
+            item_list_page_i = eval_url_bs4(soup_next_page, time_now)
+            insert_trade_list_into_database(connection, item_list_page_i)
+
+            print("--- %s seconds per Page---" % (datetime.now() - start_time_loop))
+        except Exception:
+            # if tries > 10:
+            #     return
+            print(response_next_page.text)
+            traceback.print_exc()
+            print(Exception)
+            print(payload)
+            print(headers)
+            # tries = tries + 1
+            return
+
+    return
+
+
+def refresh(cookies, url_flags):
+    url = "https://rocket-league.com/trading" + url_flags
+    requests.get(url, cookies=cookies)
+
+
+# def load_n_pages(url, n, path_to_chrome_driver, path_to_adblock, path_to_cookie_block):
+#     chrome_options = Options()
+#     chrome_options.add_argument("--headless")
+#     chrome_options.add_argument("--window-size=1920,1080")
+#     chrome_options.add_argument("--start-maximized")
+#     # chrome_options.add_argument("disable-popup-blocking")
+#     # chrome_options.add_experimental_option("excludeSwitches", ["disable-popup-blocking"])
+#
+#     # chrome_options.add_argument('load-extension=' + path_to_adblock)
+#     # chrome_options.add_argument('--disable-extensions-except=' + path_to_cookie_block,)
+#     # chrome_options.add_argument('load-extension=' + path_to_cookie_block)
+#
+#     chrome_prefs = {}
+#     chrome_options.experimental_options["prefs"] = chrome_prefs
+#     chrome_prefs["profile.default_content_settings"] = {"images": 2}
+#     chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
+#
+#     driver = webdriver.Chrome(path_to_chrome_driver, options=chrome_options)
+#     # driver = webdriver.Chrome("/home/max/PycharmProjects/chromedriver")
+#     driver.get(url)
+#     # accept privacy policy
+#     WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.ID, 'acceptPrivacyPolicy'))).click()
+#     # accept privacy policy again (wtf)
+#     WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]'))).click()
+#     # doesnt seem to work on windows
+#     # WebDriverWait(driver, 20).until(ec.element_to_be_clickable((By.CLASS_NAME, 'css-1tbbj19'))).click()
+#
+#     for i in range(n):
+#         print("\rLoading Page " + str(i + 1) + "/" + str(n), end="")
+#         try:
+#             WebDriverWait(driver, 20).until(
+#                 ec.element_to_be_clickable((By.CLASS_NAME, 'rlg-btn-primary.rlg-btn-primary-pink'))).click()
+#         except TimeoutException:
+#             print("")
+#             print('\033[91m' + "Timeout, not all pages of rl_garage could be loaded, returning." + '\033[0m')
+#             return driver.page_source
+#     print("")
+#     print("Finished loading all pages")
+#     return driver.page_source
 
 
 # rl garage
-def eval_url_bs4(content, time_now):
-    soup = BeautifulSoup(content, 'html.parser')
+def eval_url_bs4(soup, time_now):
+    # soup = BeautifulSoup(content, 'html.parser')
     trades_html = soup.find_all('div', class_='rlg-trade')  # list of all trades
     idx = 0  # so idx can not be undefined
     trade_list = []
     for idx, trade in enumerate(trades_html):
+        # print("\rEvaluating Trade " + str(idx + 1) + "/" + str(len(trades_html)), end="")
 
         # Find all the single item tags for each trade
         has_item_html = trade.find('div', class_='rlg-trade__itemshas').find_all("a", class_='rlg-item')
@@ -96,10 +190,8 @@ def eval_url_bs4(content, time_now):
 
         trade_list.append(Trade.Trade(rlg_name, platform_name, platform_username, platform_link,
                                       items_has_list, items_wants_list, trade_time, trade_note))
-        print("\rEvaluating Trade " + str(idx+1) + "/" + str(len(trades_html)), end="")
 
-        # print("\n\nCount: " + str(idx))
-    print("")
+    # print("")
     return trade_list
 
 
@@ -162,9 +254,9 @@ def parse_rlg_trade_time(date_in_text_form, time_now):
 
 
 def insert_trade_list_into_database(connection, trade_list):
-    print("Inserting Trades into Database")
+    # print("Inserting Trades into Database")
     cursor = connection.cursor()
-    for idx,trade in enumerate(trade_list):
+    for idx, trade in enumerate(trade_list):
         insert_trade_list = [
             trade.rlg_name,
             trade.platform,
@@ -180,7 +272,7 @@ def insert_trade_list_into_database(connection, trade_list):
         )
 
         trade_id = cursor.lastrowid
-        print("\rInserting Trade " + str(idx+1) + "/" + str(len(trade_list)), end="")
+        # print("\rInserting Trade " + str(idx + 1) + "/" + str(len(trade_list)), end="")
 
         for has_item, wants_item in zip(trade.has_item_list, trade.wants_item_list):
             insert_content_list = [
@@ -200,5 +292,5 @@ def insert_trade_list_into_database(connection, trade_list):
             cursor.execute('INSERT INTO rl_garage_trade_contents (trade_id, has_item_name, has_item_quantity, '
                            'has_item_rarity, has_item_color, wants_item_name, wants_item_quantity, wants_item_rarity, '
                            'wants_item_color) VALUES (?,?,?,?,?,?,?,?,?)', insert_content_list)
-    print("")
+    # print("")
     connection.commit()
