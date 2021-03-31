@@ -55,7 +55,9 @@ CREATE TABLE IF NOT EXISTS rl_garage_trade_contents
     content_ID          INTEGER,
 
     PRIMARY KEY (content_ID),
-    FOREIGN KEY (trade_id) REFERENCES rl_garage_trade (trade_id) ON DELETE CASCADE
+    FOREIGN KEY (trade_id) REFERENCES rl_garage_trade (trade_id) ON DELETE CASCADE,
+    UNIQUE (has_item_name, has_item_quantity, has_item_rarity, has_item_color, wants_item_name, wants_item_quantity,
+            wants_item_rarity, wants_item_color) ON CONFLICT IGNORE
 );
 
 -- queries
